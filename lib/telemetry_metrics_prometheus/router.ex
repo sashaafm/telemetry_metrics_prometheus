@@ -4,6 +4,7 @@ defmodule TelemetryMetricsPrometheus.Router do
   use Plug.Router
   alias Plug.Conn
 
+  plug(:auth)
   plug(:match)
   plug(Plug.Telemetry, event_prefix: [:prometheus_metrics, :plug])
   plug(:dispatch, builder_opts())
@@ -22,6 +23,18 @@ defmodule TelemetryMetricsPrometheus.Router do
 
   match _ do
     Conn.send_resp(conn, 404, "Not Found")
+  end
+
+  defp auth(conn, _opts) do
+    app = :telemetry_metrics_prometheus
+
+    if Application.get_env(app, :basic_auth?, false) do
+      username = Application.fetch_env!(app, :basic_auth_username)
+      password = Application.fetch_env!(app, :basic_auth_password)
+      Plug.BasicAuth.basic_auth(conn, username: username, password: password)
+    else
+      conn
+    end
   end
 
   defp execute_pre_scrape_handler({m, f, a}), do: apply(m, f, a)
